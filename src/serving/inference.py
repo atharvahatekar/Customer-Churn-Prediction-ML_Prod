@@ -60,10 +60,26 @@ except Exception as e:
 # CRITICAL: Load the exact feature column order used during training
 # This ensures the model receives features in the expected order
 try:
-    feature_file = os.path.join(MODEL_DIR, "feature_columns.txt")
+    # Docker places feature_columns.txt inside /app/model, while MLflow stores
+    # it beside the model directory at artifacts/feature_columns.txt.
+    feature_candidates = [
+        os.path.join(MODEL_DIR, "feature_columns.txt"),
+        os.path.join(os.path.dirname(MODEL_DIR), "feature_columns.txt"),
+    ]
+    feature_file = next(
+        (path for path in feature_candidates if os.path.isfile(path)),
+        None,
+    )
+    if feature_file is None:
+        raise FileNotFoundError(
+            "feature_columns.txt was not found in: "
+            + ", ".join(feature_candidates)
+        )
     with open(feature_file) as f:
         FEATURE_COLS = [ln.strip() for ln in f if ln.strip()]
-    print(f"✅ Loaded {len(FEATURE_COLS)} feature columns from training")
+    print(
+        f"✅ Loaded {len(FEATURE_COLS)} feature columns from {feature_file}"
+    )
 except Exception as e:
     raise Exception(f"Failed to load feature columns: {e}")
 
